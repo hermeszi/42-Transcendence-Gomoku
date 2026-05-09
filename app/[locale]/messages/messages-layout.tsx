@@ -1,110 +1,182 @@
 "use client";
 
-import { MessageSquare, Send /*Search*/ } from "lucide-react";
+import { Check, MessageSquare, Search, Send, ShieldCheck, Swords, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+
+import GomokuBoard from "@/components/gomoku-board";
+import { AvatarToken, Badge, PageHeader, PageShell } from "@/components/gomoku-ui";
+
+const chats = [
+  { id: "MJ", rank: "5-dan", status: "online", unread: 2 },
+  { id: "Alex", rank: "3-dan", status: "studying", unread: 0 },
+  { id: "Hoshi", rank: "6-dan", status: "online", unread: 1 },
+  { id: "Tenkei", rank: "2-dan", status: "away", unread: 0 },
+] as const;
 
 export default function MessagesContent() {
   const searchParams = useSearchParams();
   const initialUser = searchParams.get("user") || "MJ";
-
   const [activeChat, setActiveChat] = useState(initialUser);
   const [messageText, setMessageText] = useState("");
+  const [query, setQuery] = useState("");
   const t = useTranslations("messagesPage");
 
   useEffect(() => {
     const userParam = searchParams.get("user");
-    if (userParam) {
-      setActiveChat(userParam);
-    }
+    if (userParam) setActiveChat(userParam);
   }, [searchParams]);
 
+  const visibleChats = useMemo(
+    () => chats.filter((chat) => chat.id.toLowerCase().includes(query.toLowerCase())),
+    [query],
+  );
+
+  const handleSend = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMessageText("");
+  };
+
   return (
-    <main className="shell">
-      <section className="mt-4 mb-12 flex flex-col items-center">
-        <div className="mb-6 flex items-center gap-4">
-          <MessageSquare className="h-12 w-12 text-[#4ee8c2]" />
-          <h1 className="m-0 text-5xl font-bold">{t("title")}</h1>
-        </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="Messages"
+        icon={MessageSquare}
+        title={t("title")}
+        lede="A match-first inbox for rivals, rematches, and live room invites."
+      />
 
-        <div className="flex w-full max-w-md gap-3">
-          <input
-            type="text"
-            placeholder={t("searchPlaceholder")}
-            className="flex-1 rounded-xl border border-slate-700/50 bg-[#0c1628] px-5 py-3 text-white transition-colors focus:border-[#4ee8c2] focus:outline-none"
-          />
-          <button className="rounded-xl bg-[#4ee8c2] px-6 py-3 font-bold tracking-wider text-[#04131a] uppercase transition-transform hover:-translate-y-0.5">
-            {t("search")}
-          </button>
-        </div>
-      </section>
+      <section className="grid min-h-[760px] overflow-hidden rounded-md border border-[var(--panel-border-soft)] bg-[var(--panel)] shadow-[0_30px_90px_rgba(0,0,0,0.4)] xl:grid-cols-[350px_minmax(0,1fr)]">
+        <aside className="border-b border-[var(--panel-border-soft)] bg-[var(--sidebar)] p-4 xl:border-r xl:border-b-0">
+          <label className="mb-4 grid gap-2">
+            <span className="field-label">{t("search")}</span>
+            <span className="field-shell">
+              <Search aria-hidden="true" className="size-4 text-[var(--brass)]" />
+              <input
+                type="text"
+                name="messageSearch"
+                autoComplete="off"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("searchPlaceholder")}
+                className="text-input field-input"
+              />
+            </span>
+          </label>
 
-      <section className="panel overflow-hidden rounded-xl border border-slate-700/50 bg-[#08101F] p-0 shadow-2xl shadow-blue-500/10">
-        <div className="flex h-[700px] w-full flex-row">
-          <div className="flex w-1/3 min-w-[250px] flex-col border-r border-slate-700/50 bg-[#0b182d] pt-2">
-            <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
+          <div className="grid gap-2">
+            {visibleChats.map((chat) => (
               <button
-                onClick={() => setActiveChat("MJ")}
-                className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${activeChat === "MJ" ? "bg-slate-800" : "hover:bg-slate-800/50"}`}
+                key={chat.id}
+                type="button"
+                onClick={() => setActiveChat(chat.id)}
+                className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border p-3 text-left transition-[background-color,border-color] focus-visible:ring-3 focus-visible:ring-[var(--mint)]/25 focus-visible:outline-none ${
+                  activeChat === chat.id
+                    ? "border-[var(--mint)]/35 bg-[var(--mint-soft)]"
+                    : "border-transparent bg-white/[0.035] hover:border-[var(--panel-border-soft)] hover:bg-white/[0.06]"
+                }`}
               >
-                <div className="h-10 w-10 shrink-0 rounded-full bg-slate-600"></div>
-                <div className="flex-1 overflow-hidden text-left">
-                  <h3 className="m-0 font-bold text-white">MJ</h3>
-                  <p className="m-0 truncate text-sm text-slate-400">{t("previews.mj")}</p>
-                </div>
+                <AvatarToken name={chat.id} online={chat.status === "online"} />
+                <span className="min-w-0">
+                  <span className="block truncate font-black">{chat.id}</span>
+                  <span className="block truncate text-sm text-[var(--muted-text)]">
+                    {chat.id === "MJ" ? t("previews.mj") : t("previews.alex")}
+                  </span>
+                </span>
+                <span className="grid justify-items-end gap-1">
+                  <span className="text-xs font-black text-[var(--brass)]">{chat.rank}</span>
+                  {chat.unread > 0 ? <Badge tone="red">{chat.unread}</Badge> : null}
+                </span>
               </button>
-              <button
-                onClick={() => setActiveChat("Alex")}
-                className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${activeChat === "Alex" ? "bg-slate-800" : "hover:bg-slate-800/50"}`}
-              >
-                <div className="h-10 w-10 shrink-0 rounded-full bg-slate-600"></div>
-                <div className="flex-1 overflow-hidden text-left">
-                  <h3 className="m-0 font-bold text-white">Alex</h3>
-                  <p className="m-0 truncate text-sm text-slate-400">{t("previews.alex")}</p>
-                </div>
-              </button>
+            ))}
+          </div>
+        </aside>
+
+        <div className="grid min-w-0 grid-rows-[auto_1fr_auto]">
+          <header className="flex items-center justify-between gap-4 border-b border-[var(--panel-border-soft)] bg-[var(--panel-solid)] p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <AvatarToken name={activeChat} online />
+              <div className="min-w-0">
+                <h2 className="m-0 truncate font-serif text-3xl font-bold">{activeChat}</h2>
+                <p className="m-0 text-sm text-[var(--muted-text)]">Ready for rematch invites</p>
+              </div>
             </div>
+            <Badge tone="mint">
+              <ShieldCheck aria-hidden="true" className="size-3.5" />
+              trusted rival
+            </Badge>
+          </header>
+
+          <div className="grid content-end gap-5 overflow-y-auto p-5 sm:p-8">
+            <div className="flex max-w-[82%] gap-3">
+              <AvatarToken name={activeChat} size="sm" />
+              <div className="rounded-md rounded-bl-sm border border-[var(--panel-border-soft)] bg-white/[0.06] p-4 text-[var(--muted-strong)]">
+                <p className="m-0">{t("thread.incoming")}</p>
+              </div>
+            </div>
+
+            <div className="flex max-w-[82%] flex-row-reverse gap-3 justify-self-end">
+              <div className="rounded-md rounded-br-sm bg-[var(--mint)] p-4 text-[var(--primary-foreground)]">
+                <p className="m-0 font-bold">{t("thread.outgoing")}</p>
+              </div>
+            </div>
+
+            <article className="max-w-xl rounded-md border border-[var(--brass)]/35 bg-[linear-gradient(135deg,rgba(216,172,89,0.16),rgba(255,255,255,0.04))] p-4">
+              <div className="grid gap-4 sm:grid-cols-[120px_minmax(0,1fr)]">
+                <GomokuBoard className="w-full max-w-[120px]" />
+                <div>
+                  <Badge tone="brass">
+                    <Swords aria-hidden="true" className="size-3.5" />
+                    Match invite
+                  </Badge>
+                  <h3 className="mt-3 font-serif text-2xl font-bold">Private room: Study Fuseki</h3>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted-text)]">
+                    15 x 15 standard, 10 minute timer. Accept to join the room lobby.
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button type="button" className="btn m-0 min-h-10 px-4">
+                      <Check aria-hidden="true" className="size-4" />
+                      Accept
+                    </button>
+                    <button type="button" className="btn btn-danger m-0 min-h-10 px-4">
+                      <X aria-hidden="true" className="size-4" />
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </article>
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-col bg-[#08101F]">
-            <div className="flex items-center gap-4 border-b border-slate-700/50 bg-[#0b182d] p-4">
-              <div className="h-10 w-10 shrink-0 rounded-full bg-slate-600"></div>
-              <h2 className="m-0 text-xl font-bold text-white">{activeChat}</h2>
+          <form
+            onSubmit={handleSend}
+            className="border-t border-[var(--panel-border-soft)] bg-[var(--panel-solid)] p-4"
+          >
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <input
+                type="text"
+                name="message"
+                autoComplete="off"
+                aria-label={t("composerPlaceholder", { name: activeChat })}
+                value={messageText}
+                onChange={(event) => setMessageText(event.target.value)}
+                placeholder={t("composerPlaceholder", { name: activeChat })}
+                className="text-input"
+              />
+              <button
+                type="submit"
+                className="btn m-0 px-5"
+                disabled={messageText.trim().length === 0}
+              >
+                <Send aria-hidden="true" className="size-4" />
+                <span className="hidden sm:inline">{t("send")}</span>
+              </button>
             </div>
-
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
-              <div className="flex max-w-[80%] gap-3">
-                <div className="mt-auto h-8 w-8 shrink-0 rounded-full bg-slate-600"></div>
-                <div className="rounded-2xl rounded-bl-sm bg-slate-800 p-3 text-slate-200">
-                  <p className="m-0">{t("thread.incoming")}</p>
-                </div>
-              </div>
-              <div className="flex max-w-[80%] flex-row-reverse gap-3 self-end">
-                <div className="rounded-2xl rounded-br-sm bg-[#4ee8c2] p-3 text-[#04131a]">
-                  <p className="m-0 font-medium">{t("thread.outgoing")}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-700/50 bg-[#0b182d] p-4">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder={t("composerPlaceholder", { name: activeChat })}
-                  className="flex-1 rounded-xl border border-slate-700/50 bg-[#0c1628] px-4 py-3 text-white transition-colors focus:border-[#4ee8c2] focus:outline-none"
-                />
-                <button className="flex shrink-0 items-center gap-2 rounded-xl bg-[#4ee8c2] px-6 py-3 font-bold text-[#04131a] transition-transform hover:-translate-y-0.5">
-                  <Send className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t("send")}</span>
-                </button>
-              </div>
-            </div>
-          </div>
+          </form>
         </div>
       </section>
-    </main>
+    </PageShell>
   );
 }

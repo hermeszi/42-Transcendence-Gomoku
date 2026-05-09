@@ -1,8 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
-import { User } from "lucide-react";
+import { Activity, ArrowLeft, Award, BarChart3, Flag, Swords, Trophy } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { AvatarToken, Badge, MetricCard, PageShell, Surface } from "@/components/gomoku-ui";
+import { Link } from "@/i18n/navigation";
 import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -48,8 +50,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       const friendship = await prisma.friendship.findUnique({
         where: {
           userLowId_userHighId: {
-            userLowId,
             userHighId,
+            userLowId,
           },
         },
       });
@@ -73,69 +75,131 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const winRate = played > 0 ? Math.round((wins / played) * 100) : 0;
 
   return (
-    <main className="shell">
-      <section className="mt-4 mb-2 flex flex-col items-center">
-        <div className="mb-6 flex items-center gap-4">
-          <User className="h-12 w-12 text-[#4ee8c2]" />
-          <h1 className="m-0 text-5xl font-bold">{t("title")}</h1>
-        </div>
-      </section>
+    <PageShell>
+      <Link
+        href="/leaderboard"
+        className="mb-4 inline-flex items-center gap-2 text-sm font-black text-[var(--brass)] no-underline"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        Back to leaderboard
+      </Link>
 
-      <section className="panel">
-        <div className="flex w-full flex-row items-stretch gap-8">
-          <article className="card flex flex-1 flex-col items-center overflow-hidden py-8 text-center">
-            {userProfile.avatarUrl ? (
-              <img
-                src={userProfile.avatarUrl}
-                alt={userProfile.displayName}
-                className="mb-6 h-[300px] w-[300px] rounded-full bg-transparent object-cover shadow-lg shadow-[#000000]/50"
-              />
-            ) : (
-              <div className="mb-6 flex h-[300px] w-[300px] items-center justify-center rounded-full bg-slate-600 text-8xl font-bold text-white uppercase shadow-lg shadow-[#000000]/50">
-                {userProfile.displayName.charAt(0)}
-              </div>
-            )}
-            <h2 className="m-0 mb-1 px-4 text-2xl font-bold capitalize">
-              {userProfile.displayName}
-            </h2>
-            <div className="flex items-center justify-center gap-4">
-              <p className="meta m-0 text-sm text-slate-400">@{userProfile.username}</p>
+      <section className="command-panel mb-5">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+          <div className="flex min-w-0 flex-wrap items-center gap-5">
+            <AvatarToken
+              image={userProfile.avatarUrl}
+              name={userProfile.displayName}
+              online={relationshipState === "FRIENDS" || relationshipState === "SELF"}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <Badge tone="brass">
+                <Trophy aria-hidden="true" className="size-3.5" />
+                Public Player File
+              </Badge>
+              <h1 className="mt-4 font-serif text-6xl leading-none font-bold max-sm:text-4xl">
+                {userProfile.displayName}
+              </h1>
+              <p className="mt-2 text-lg text-[var(--muted-text)]">@{userProfile.username}</p>
               {(relationshipState === "FRIENDS" || relationshipState === "SELF") && (
-                <ProfilePresence username={userProfile.username} />
+                <div className="mt-3">
+                  <ProfilePresence username={userProfile.username} />
+                </div>
               )}
             </div>
+          </div>
+          <div className="grid justify-items-start gap-3 xl:justify-items-end">
             <ProfileActions
               targetUserId={userProfile.id}
               targetUsername={userProfile.username}
               initialState={relationshipState}
             />
-          </article>
-
-          <div className="flex flex-2 flex-col gap-8">
-            <article className="card flex flex-1 flex-col">
-              <h2 className="mb-6 text-2xl font-bold">{t("friendStatsTitle")}</h2>
-              <div className="flex flex-1 flex-wrap gap-4">
-                <div className="flex flex-[1_1_40%] flex-col items-center justify-center rounded-lg bg-[#08101F] py-6 shadow-lg shadow-[#000000]/50">
-                  <h2 className="m-0 text-4xl font-bold text-[#4ee8c2]">{rating}</h2>
-                  <p className="meta m-0 text-slate-400">{t("stats.rating")}</p>
-                </div>
-                <div className="flex flex-[1_1_40%] flex-col items-center justify-center rounded-lg bg-[#08101F] py-6 shadow-lg shadow-[#000000]/50">
-                  <h2 className="m-0 text-4xl font-bold text-white">{winRate}%</h2>
-                  <p className="meta m-0 text-slate-400">{t("stats.winRate")}</p>
-                </div>
-                <div className="flex flex-[1_1_40%] flex-col items-center justify-center rounded-lg bg-[#08101F] py-6 shadow-lg shadow-[#000000]/50">
-                  <h2 className="m-0 text-4xl font-bold text-white">{wins}</h2>
-                  <p className="meta m-0 text-slate-400">{t("stats.wins")}</p>
-                </div>
-                <div className="flex flex-[1_1_40%] flex-col items-center justify-center rounded-lg bg-[#08101F] py-6 shadow-lg shadow-[#000000]/50">
-                  <h2 className="m-0 text-4xl font-bold text-white">{losses}</h2>
-                  <p className="meta m-0 text-slate-400">{t("stats.losses")}</p>
-                </div>
-              </div>
-            </article>
+            <button type="button" className="btn btn-danger m-0 min-h-10 px-4">
+              <Swords aria-hidden="true" className="size-4" />
+              Challenge
+            </button>
           </div>
         </div>
       </section>
-    </main>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-5">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard icon={Trophy} label={t("stats.rating")} tone="brass" value={rating} />
+            <MetricCard
+              icon={Activity}
+              label={t("stats.winRate")}
+              tone="mint"
+              value={`${winRate}%`}
+            />
+            <MetricCard label={t("stats.wins")} value={wins} />
+            <MetricCard label={t("stats.losses")} value={losses} />
+          </div>
+
+          <Surface eyebrow="Rating Progress" icon={BarChart3} title="Season curve">
+            <div className="grid h-64 items-end gap-3 rounded-md border border-[var(--panel-border-soft)] bg-black/20 p-4">
+              <div className="flex h-full items-end gap-2">
+                {[34, 42, 38, 56, 62, 58, 76, 72, 81, 88, 84, 92].map((height, index) => (
+                  <span key={index} className="flex flex-1 items-end">
+                    <span
+                      className="block w-full rounded-t-sm bg-[linear-gradient(180deg,var(--mint),var(--brass))]"
+                      style={{ height: `${height}%` }}
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Surface>
+
+          <Surface eyebrow="Recent Matches" title="Scouting sample">
+            <div className="grid gap-2">
+              {["Won against Tenkei", "Lost against Hoshi", "Won against Mokuren"].map(
+                (item, index) => (
+                  <article
+                    key={item}
+                    className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-[var(--panel-border-soft)] bg-white/[0.035] px-3"
+                  >
+                    <span className="truncate font-black">{item}</span>
+                    <Badge tone={index === 1 ? "red" : "mint"}>{index === 1 ? "-8" : "+12"}</Badge>
+                  </article>
+                ),
+              )}
+            </div>
+          </Surface>
+        </div>
+
+        <aside className="grid content-start gap-5">
+          <Surface eyebrow="Head to Head" icon={Swords} title="Against you">
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCard label="Wins" tone="mint" value="4" />
+              <MetricCard label="Losses" tone="red" value="2" />
+            </div>
+          </Surface>
+
+          <Surface eyebrow="Achievements" icon={Award} title="Known marks">
+            <div className="grid gap-2">
+              {["Sharp Opening", "Calm Endgame", "Fast Rematch"].map((item) => (
+                <Badge key={item} tone="brass">
+                  <Award aria-hidden="true" className="size-3.5" />
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </Surface>
+
+          <Surface eyebrow="Safety" icon={Flag} title="Player controls">
+            <div className="grid gap-2">
+              <button type="button" className="btn btn-subtle m-0 justify-start">
+                Report player
+              </button>
+              <button type="button" className="btn btn-danger m-0 justify-start">
+                Block player
+              </button>
+            </div>
+          </Surface>
+        </aside>
+      </section>
+    </PageShell>
   );
 }

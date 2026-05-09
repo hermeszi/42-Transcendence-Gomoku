@@ -1,42 +1,70 @@
+import { Eye, EyeOff, LockKeyhole, Plus, Swords, Timer } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-  CardHeader,
-  CardFooter,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge, Surface } from "@/components/gomoku-ui";
 
 export default function CreateRoomCard() {
   const t = useTranslations("human.createRoom");
 
   return (
-    <Card className="border-white/10 bg-slate-900/70 text-white shadow-xl backdrop-blur">
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription className="text-slate-300">{t("description")}</CardDescription>
-      </CardHeader>
+    <Surface eyebrow="Challenge" icon={Swords} title={t("title")}>
+      <p className="m-0 text-sm leading-6 text-[var(--muted-text)]">{t("description")}</p>
 
-      <CardContent>
-        <div className="space-y-2">
-          <Label htmlFor="room-password">{t("password")}</Label>
-          <Input
-            id="room-password"
-            type="password"
-            placeholder={t("optionalPassword")}
-            className="mt-1 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
-          />
+      <div className="grid gap-4">
+        <div className="field">
+          <label htmlFor="room-name" className="field-label">
+            Room name
+          </label>
+          <input id="room-name" name="roomName" placeholder="Quiet Fuseki" className="text-input" />
         </div>
-      </CardContent>
 
-      <CardFooter>
-        <Button>{t("submit")}</Button>
-      </CardFooter>
-    </Card>
+        <div className="field">
+          <label htmlFor="room-password" className="field-label">
+            {t("password")}
+          </label>
+          <div className="field-shell">
+            <LockKeyhole aria-hidden="true" className="size-4 text-[var(--brass)]" />
+            <input
+              id="room-password"
+              name="roomPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder={t("optionalPassword")}
+              className="text-input field-input"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="min-h-11 rounded-md border border-[var(--mint)]/35 bg-[var(--mint-soft)] px-3 text-sm font-black text-[var(--mint)]"
+          >
+            <Eye aria-hidden="true" className="mr-2 inline size-4" />
+            Public
+          </button>
+          <button
+            type="button"
+            className="min-h-11 rounded-md border border-[var(--panel-border-soft)] bg-white/[0.035] px-3 text-sm font-black text-[var(--muted-strong)]"
+          >
+            <EyeOff aria-hidden="true" className="mr-2 inline size-4" />
+            Private
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Badge tone="neutral">
+            <Timer aria-hidden="true" className="size-3.5" />
+            10m timer
+          </Badge>
+          <Badge tone="brass">15 x 15 board</Badge>
+        </div>
+
+        <button type="button" className="btn btn-danger m-0 w-full">
+          <Plus aria-hidden="true" className="size-4" />
+          {t("submit")}
+        </button>
+      </div>
+    </Surface>
   );
 }

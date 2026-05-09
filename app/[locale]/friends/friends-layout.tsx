@@ -1,16 +1,34 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { MessageSquare, UserMinus, Check, X, Users, UserPlus } from "lucide-react";
+import {
+  Check,
+  MessageSquare,
+  Search,
+  SlidersHorizontal,
+  Swords,
+  UserMinus,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import Form from "next/form";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { AvatarToken, Badge, PageHeader, PageShell, Surface } from "@/components/gomoku-ui";
 import { usePresence } from "@/components/presence-provider";
 import { Link } from "@/i18n/navigation";
 
 import { removeFriend, respondToRequest, sendFriendRequest } from "./actions";
+
+type FriendStats = {
+  wins: number;
+  losses: number;
+  matchesPlayed: number;
+  rating: number | null;
+} | null;
 
 type FriendData = {
   id: number;
@@ -18,7 +36,7 @@ type FriendData = {
   username: string;
   displayName: string;
   avatarUrl: string | null;
-  stats: any;
+  stats: FriendStats;
 };
 
 type SearchUser = {
@@ -36,18 +54,20 @@ type FriendsContentProps = {
   searchResults: SearchUser[];
 };
 
+type TabKey = "friends" | "pending" | "sent";
+
 export default function FriendsContent({
   friends,
   pendingRequests,
-  sentRequests,
   searchQuery,
   searchResults,
+  sentRequests,
 }: FriendsContentProps) {
   const { onlineUsers, socket } = usePresence();
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("friends");
-  const [activeTab, setActiveTab] = useState("friends");
+  const [activeTab, setActiveTab] = useState<TabKey>("friends");
   const [statusMessage, setStatusMessage] = useState<{ text: string; isError: boolean } | null>(
     null,
   );
@@ -63,12 +83,9 @@ export default function FriendsContent({
   }, [socket, router]);
 
   useEffect(() => {
-    if (statusMessage) {
-      const timer = setTimeout(() => {
-        setStatusMessage(null);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
+    if (!statusMessage) return;
+    const timer = setTimeout(() => setStatusMessage(null), 1800);
+    return () => clearTimeout(timer);
   }, [statusMessage]);
 
   const handleSendRequest = async (targetUsername: string) => {
@@ -76,377 +93,373 @@ export default function FriendsContent({
     const result = await sendFriendRequest(targetUsername);
     if (result?.error) {
       setStatusMessage({ text: result.error, isError: true });
-    } else {
-      setStatusMessage({
-        text: t("messages.requestSent", { name: targetUsername }),
-        isError: false,
-      });
-      socket?.emit("friendship:notify", targetUsername);
-      router.replace(pathname, { scroll: false });
+      return;
     }
+
+    setStatusMessage({
+      text: t("messages.requestSent", { name: targetUsername }),
+      isError: false,
+    });
+    socket?.emit("friendship:notify", targetUsername);
+    router.replace(pathname, { scroll: false });
   };
 
   const handleRespond = async (friendshipId: number, accept: boolean) => {
     const request =
-      pendingRequests.find((r) => r.id === friendshipId) ||
-      sentRequests.find((r) => r.id === friendshipId);
+      pendingRequests.find((item) => item.id === friendshipId) ||
+      sentRequests.find((item) => item.id === friendshipId);
     await respondToRequest(friendshipId, accept);
     if (request) socket?.emit("friendship:notify", request.username);
     router.refresh();
   };
 
   const handleRemove = async (friendshipId: number) => {
-    if (window.confirm("Are you sure you want to remove this friend?")) {
-      const friend = friends.find((f) => f.id === friendshipId);
-      await removeFriend(friendshipId);
-      if (friend) socket?.emit("friendship:notify", friend.username);
-      router.refresh();
-    }
+    if (!window.confirm("Are you sure you want to remove this friend?")) return;
+    const friend = friends.find((item) => item.id === friendshipId);
+    await removeFriend(friendshipId);
+    if (friend) socket?.emit("friendship:notify", friend.username);
+    router.refresh();
   };
 
+  const activeRows =
+    activeTab === "friends" ? friends : activeTab === "pending" ? pendingRequests : sentRequests;
+
   return (
-    <main className="shell">
-      <section className="mt-4 mb-12 flex flex-col items-center">
-        <div className="mb-6 flex items-center gap-4">
-          <Users className="h-12 w-12 text-[#4ee8c2]" />
-          <h1 className="m-0 text-5xl font-bold">{t("title")}</h1>
-        </div>
-        <Form action="" scroll={false} className="flex w-full max-w-md gap-3">
-          <input
-            key={searchQuery}
-            name="query"
-            type="text"
-            defaultValue={searchQuery}
-            placeholder={t("searchPlaceholder")}
-            className="flex-1 rounded-xl border border-slate-700/50 bg-[#0c1628] px-5 py-3 text-white transition-colors focus:border-[#4ee8c2] focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="rounded-xl bg-[#4ee8c2] px-6 py-3 font-bold tracking-wider text-[#04131a] uppercase transition-transform hover:-translate-y-0.5"
-          >
-            {t("search")}
-          </button>
-        </Form>
+    <PageShell>
+      <PageHeader
+        eyebrow="Friends"
+        icon={Users}
+        title={t("title")}
+        lede="Manage rivals, answer requests, and jump into chat or challenge actions from a dense roster."
+        actions={
+          <Form action="" scroll={false} className="grid w-full min-w-0 gap-2 sm:min-w-[320px]">
+            <label htmlFor="friend-search" className="field-label">
+              {t("search")}
+            </label>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+              <span className="field-shell">
+                <Search aria-hidden="true" className="size-4 text-[var(--brass)]" />
+                <input
+                  id="friend-search"
+                  key={searchQuery}
+                  name="query"
+                  type="text"
+                  defaultValue={searchQuery}
+                  placeholder={t("searchPlaceholder")}
+                  autoComplete="off"
+                  className="text-input field-input"
+                />
+              </span>
+              <button type="submit" className="btn m-0 px-4">
+                <UserPlus aria-hidden="true" className="size-4" />
+                Add
+              </button>
+            </div>
+          </Form>
+        }
+      />
 
-        {searchResults.length > 0 && (
-          <div className="mt-4 w-full max-w-md rounded-xl border border-slate-700/50 bg-[#08101F] p-2 shadow-lg shadow-blue-500/10">
-            {searchResults.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between rounded-lg p-3 transition-colors hover:bg-slate-800/50"
-              >
-                <div className="flex items-center gap-3">
-                  <Link href={`/profile/${user.username}`}>
-                    {user.avatarUrl ? (
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.displayName}
-                        className="h-8 w-8 rounded-full object-cover transition-transform hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 font-bold text-white uppercase transition-transform hover:scale-105">
-                        {user.displayName.charAt(0)}
-                      </div>
-                    )}
-                  </Link>
-                  <div className="text-left">
-                    <Link
-                      href={`/profile/${user.username}`}
-                      className="block font-bold text-white transition-colors hover:text-[#4ee8c2]"
-                    >
-                      {user.displayName}
-                    </Link>
-                    <span className="block text-xs text-slate-400">@{user.username}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleSendRequest(user.username)}
-                  className="flex items-center gap-2 rounded-md bg-[#4ee8c2]/10 px-3 py-1.5 text-sm font-bold text-[#4ee8c2] transition-colors hover:bg-[#4ee8c2]/20"
+      {statusMessage ? (
+        <p
+          className={`mb-5 rounded-md border px-4 py-3 text-sm font-bold ${
+            statusMessage.isError
+              ? "border-[var(--danger)]/35 bg-[rgb(216_60_52_/_0.16)] text-[var(--danger)]"
+              : "border-[var(--mint)]/35 bg-[var(--mint-soft)] text-[var(--mint)]"
+          }`}
+          role={statusMessage.isError ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {statusMessage.text}
+        </p>
+      ) : null}
+
+      {searchQuery.length > 0 ? (
+        <Surface
+          className="mb-5"
+          eyebrow="Search Results"
+          title={`${searchResults.length} players`}
+        >
+          {searchResults.length === 0 ? (
+            <p className="m-0 text-sm font-bold text-[var(--danger)]">{t("empty.search")}</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {searchResults.map((user) => (
+                <article
+                  key={user.id}
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-[var(--panel-border-soft)] bg-white/[0.035] p-3"
                 >
-                  <UserPlus className="h-4 w-4" />
-                  {t("actions.add")}
+                  <AvatarToken image={user.avatarUrl} name={user.displayName} />
+                  <UserName user={user} />
+                  <button
+                    type="button"
+                    onClick={() => handleSendRequest(user.username)}
+                    className="btn btn-subtle m-0 min-h-10 px-3"
+                  >
+                    <UserPlus aria-hidden="true" className="size-4" />
+                    {t("actions.add")}
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </Surface>
+      ) : null}
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Surface
+          eyebrow="Roster"
+          icon={SlidersHorizontal}
+          title={
+            activeTab === "friends"
+              ? "Friends Table"
+              : activeTab === "pending"
+                ? "Pending Requests"
+                : "Sent Requests"
+          }
+        >
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex overflow-hidden rounded-md border border-[var(--panel-border-soft)] bg-[var(--panel-solid)] p-1">
+              {[
+                { key: "friends", label: t("tabs.friends"), count: friends.length },
+                { key: "pending", label: t("tabs.pending"), count: pendingRequests.length },
+                { key: "sent", label: t("tabs.sent"), count: sentRequests.length },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key as TabKey)}
+                  className={`min-h-10 rounded-sm px-4 text-sm font-black ${
+                    activeTab === tab.key
+                      ? "bg-[var(--mint-soft)] text-[var(--mint)]"
+                      : "text-[var(--muted-text)]"
+                  }`}
+                >
+                  {tab.label} <span className="tabular-nums">{tab.count}</span>
                 </button>
-              </div>
-            ))}
+              ))}
+            </div>
+            <Badge tone="brass">Sort: Rating</Badge>
           </div>
-        )}
 
-        {!statusMessage && searchQuery.length > 0 && searchResults.length === 0 && (
-          <p className="mt-3 text-sm font-bold text-red-400">{t("empty.search")}</p>
-        )}
+          {activeRows.length === 0 ? (
+            <EmptyState
+              label={
+                activeTab === "friends"
+                  ? t("empty.friends")
+                  : activeTab === "pending"
+                    ? t("empty.pending")
+                    : t("empty.sent")
+              }
+            />
+          ) : (
+            <FriendsTable
+              activeTab={activeTab}
+              friends={activeRows}
+              onlineUsers={onlineUsers}
+              onRemove={handleRemove}
+              onRespond={handleRespond}
+            />
+          )}
+        </Surface>
 
-        {statusMessage && (
-          <p
-            className={`mt-3 text-sm font-bold ${statusMessage.isError ? "text-red-400" : "text-[#4ee8c2]"}`}
-          >
-            {statusMessage.text}
-          </p>
-        )}
+        <aside className="grid content-start gap-5">
+          <Surface eyebrow="Pending" title="Requests">
+            <div className="grid gap-2">
+              {pendingRequests.slice(0, 4).map((request) => (
+                <RequestRow
+                  key={request.id}
+                  request={request}
+                  onAccept={() => handleRespond(request.id, true)}
+                  onDecline={() => handleRespond(request.id, false)}
+                />
+              ))}
+              {pendingRequests.length === 0 ? (
+                <p className="m-0 text-sm font-bold text-[var(--muted-text)]">
+                  {t("empty.pending")}
+                </p>
+              ) : null}
+            </div>
+          </Surface>
+
+          <Surface eyebrow="Suggested Rivals" title="Same bracket">
+            <div className="grid gap-2">
+              {["Hoshi", "Tenkei", "Mokuren"].map((name, index) => (
+                <article
+                  key={name}
+                  className="grid min-h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-[var(--panel-border-soft)] bg-white/[0.035] px-3"
+                >
+                  <AvatarToken name={name} online={index === 0} size="sm" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-black">{name}</span>
+                    <span className="block text-xs text-[var(--muted-text)]">
+                      {1850 - index * 62} rating
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="grid size-9 place-items-center rounded-md border border-[var(--panel-border-soft)]"
+                  >
+                    <UserPlus aria-hidden="true" className="size-4" />
+                  </button>
+                </article>
+              ))}
+            </div>
+          </Surface>
+        </aside>
       </section>
+    </PageShell>
+  );
+}
 
-      <section className="panel">
-        <div className="mb-8 flex justify-center gap-4 border-b border-slate-700/50 pb-4">
-          <button
-            onClick={() => setActiveTab("friends")}
-            className={`rounded-md px-4 py-2 font-bold transition-colors ${activeTab === "friends" ? "bg-[#4ee8c2] text-[#04131a]" : "text-slate-300 hover:bg-slate-800"}`}
-          >
-            {t("tabs.friends")} ({friends.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("pending")}
-            className={`rounded-md px-4 py-2 font-bold transition-colors ${activeTab === "pending" ? "bg-[#4ee8c2] text-[#04131a]" : "text-slate-300 hover:bg-slate-800"}`}
-          >
-            {t("tabs.pending")} ({pendingRequests.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("sent")}
-            className={`rounded-md px-4 py-2 font-bold transition-colors ${activeTab === "sent" ? "bg-[#4ee8c2] text-[#04131a]" : "text-slate-300 hover:bg-slate-800"}`}
-          >
-            {t("tabs.sent")} ({sentRequests.length})
-          </button>
+function FriendsTable({
+  activeTab,
+  friends,
+  onlineUsers,
+  onRemove,
+  onRespond,
+}: {
+  activeTab: TabKey;
+  friends: FriendData[];
+  onlineUsers: string[];
+  onRemove: (id: number) => void;
+  onRespond: (id: number, accept: boolean) => void;
+}) {
+  return (
+    <div
+      className="overflow-x-auto rounded-md border border-[var(--panel-border-soft)] bg-white/[0.025]"
+      data-testid="friends-table"
+    >
+      <div className="min-w-[760px]">
+        <div className="grid grid-cols-[minmax(220px,1fr)_110px_100px_92px_170px] gap-3 border-b border-[var(--panel-border-soft)] bg-black/20 px-4 py-3 text-xs font-black tracking-[0.12em] text-[var(--muted-text)] uppercase">
+          <span>Player</span>
+          <span>Rating</span>
+          <span>Win Rate</span>
+          <span>Status</span>
+          <span>Actions</span>
         </div>
+        {friends.map((friend) => {
+          const wins = friend.stats?.wins ?? 0;
+          const played = friend.stats?.matchesPlayed ?? 0;
+          const winRate = played > 0 ? Math.round((wins / played) * 100) : 0;
+          const online = onlineUsers.includes(friend.username);
 
-        <div className="flex flex-col gap-4">
-          {activeTab === "friends" && (
-            <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-[#08101F] shadow-lg shadow-blue-500/10">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
-                    <th className="p-4 font-bold text-slate-200">{t("table.rank")}</th>
-                    <th className="p-4 font-bold text-slate-200">{t("table.friend")}</th>
-                    <th className="p-4 font-bold text-slate-200">{t("table.rating")}</th>
-                    <th className="p-4 font-bold text-slate-200">{t("table.winRate")}</th>
-                    <th className="p-4 font-bold text-slate-200">{t("table.wins")}</th>
-                    <th className="p-4 font-bold text-slate-200">{t("table.losses")}</th>
-                    <th className="p-4 text-right font-bold text-slate-200">
-                      {t("table.actions")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {friends.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-400">
-                        {t("empty.friends")}
-                      </td>
-                    </tr>
-                  ) : (
-                    friends.map((friend, index) => {
-                      const wins = friend.stats?.wins || 0;
-                      const played = friend.stats?.matchesPlayed || 0;
-                      const winRate = played > 0 ? Math.round((wins / played) * 100) : 0;
+          return (
+            <article
+              key={friend.id}
+              className="grid min-h-16 grid-cols-[minmax(220px,1fr)_110px_100px_92px_170px] items-center gap-3 border-b border-[var(--panel-border-soft)] px-4 py-3 last:border-b-0 hover:bg-white/[0.045]"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <AvatarToken image={friend.avatarUrl} name={friend.displayName} online={online} />
+                <UserName user={friend} />
+              </div>
+              <span className="font-black text-[var(--brass)] tabular-nums">
+                {friend.stats?.rating ?? 0}
+              </span>
+              <span className="font-black text-[var(--mint)] tabular-nums">{winRate}%</span>
+              <Badge tone={online ? "mint" : "neutral"}>{online ? "Online" : "Offline"}</Badge>
+              <div className="flex items-center gap-2">
+                {activeTab === "friends" ? (
+                  <>
+                    <Link
+                      href={`/messages?user=${friend.username}`}
+                      className="icon-button"
+                      aria-label={`Message ${friend.displayName}`}
+                    >
+                      <MessageSquare aria-hidden="true" className="size-4" />
+                    </Link>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Challenge ${friend.displayName}`}
+                    >
+                      <Swords aria-hidden="true" className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(friend.id)}
+                      className="icon-button text-[var(--danger)]"
+                      aria-label={`Remove ${friend.displayName}`}
+                    >
+                      <UserMinus aria-hidden="true" className="size-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onRespond(friend.id, true)}
+                      className="icon-button"
+                      aria-label={`Accept ${friend.displayName}`}
+                    >
+                      <Check aria-hidden="true" className="size-4 text-[var(--mint)]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRespond(friend.id, false)}
+                      className="icon-button"
+                      aria-label={`Decline ${friend.displayName}`}
+                    >
+                      <X aria-hidden="true" className="size-4 text-[var(--danger)]" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-                      return (
-                        <tr
-                          key={friend.id}
-                          className="border-b border-slate-700/50 transition-colors hover:bg-slate-800/20"
-                        >
-                          <td className="p-4 text-slate-300">{index + 1}</td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <Link href={`/profile/${friend.username}`}>
-                                {friend.avatarUrl ? (
-                                  <img
-                                    src={friend.avatarUrl}
-                                    alt={friend.displayName}
-                                    className="h-8 w-8 rounded-full object-cover transition-transform hover:scale-105"
-                                  />
-                                ) : (
-                                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 font-bold text-white uppercase transition-transform hover:scale-105">
-                                    {friend.displayName.charAt(0)}
-                                  </div>
-                                )}
-                              </Link>
-                              <div className="flex flex-col text-left">
-                                <Link
-                                  href={`/profile/${friend.username}`}
-                                  className="font-bold text-white transition-colors hover:text-[#4ee8c2]"
-                                >
-                                  {friend.displayName}
-                                </Link>
-                                {onlineUsers.includes(friend.username) ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="h-2 w-2 rounded-full bg-[#4ee8c2] shadow-[0_0_5px_#4ee8c2]"></span>
-                                    <span className="text-xs font-bold text-[#4ee8c2]">
-                                      {t("status.online")}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_5px_#ef4444]"></span>
-                                    <span className="text-xs font-bold text-red-500">
-                                      {t("status.offline")}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4 text-slate-300">{friend.stats?.rating || 0}</td>
-                          <td className="p-4 text-slate-300">{winRate}%</td>
-                          <td className="p-4 text-slate-300">{wins}</td>
-                          <td className="p-4 text-slate-300">{friend.stats?.losses || 0}</td>
-                          <td className="flex justify-end gap-2 p-4">
-                            <Link
-                              href={`/messages?user=${friend.username}`}
-                              className="flex items-center gap-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-bold transition-colors hover:bg-slate-700"
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                              {t("actions.chat")}
-                            </Link>
-                            <button
-                              onClick={() => handleRemove(friend.id)}
-                              className="flex items-center gap-2 rounded-md bg-red-500/10 px-3 py-1.5 text-sm font-bold text-red-400 transition-colors hover:bg-red-500/20"
-                            >
-                              <UserMinus className="h-4 w-4" />
-                              {t("actions.remove")}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+function RequestRow({
+  onAccept,
+  onDecline,
+  request,
+}: {
+  onAccept: () => void;
+  onDecline: () => void;
+  request: FriendData;
+}) {
+  return (
+    <article className="grid min-h-14 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-md border border-[var(--panel-border-soft)] bg-white/[0.035] px-3">
+      <AvatarToken image={request.avatarUrl} name={request.displayName} size="sm" />
+      <UserName user={request} />
+      <button type="button" onClick={onAccept} className="icon-button">
+        <Check aria-hidden="true" className="size-4 text-[var(--mint)]" />
+      </button>
+      <button type="button" onClick={onDecline} className="icon-button">
+        <X aria-hidden="true" className="size-4 text-[var(--danger)]" />
+      </button>
+    </article>
+  );
+}
 
-          {activeTab === "pending" && (
-            <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-[#08101F] shadow-lg shadow-blue-500/10">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
-                    <th className="p-4 font-bold text-slate-200">{t("tabs.pending")}</th>
-                    <th className="p-4 text-right font-bold text-slate-200">
-                      {t("table.actions")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="p-8 text-center text-slate-400">
-                        {t("empty.pending")}
-                      </td>
-                    </tr>
-                  ) : (
-                    pendingRequests.map((request) => (
-                      <tr
-                        key={request.id}
-                        className="border-b border-slate-700/50 transition-colors hover:bg-slate-800/20"
-                      >
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <Link href={`/profile/${request.username}`}>
-                              {request.avatarUrl ? (
-                                <img
-                                  src={request.avatarUrl}
-                                  alt={request.displayName}
-                                  className="h-8 w-8 rounded-full object-cover transition-transform hover:scale-105"
-                                />
-                              ) : (
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 font-bold text-white uppercase transition-transform hover:scale-105">
-                                  {request.displayName.charAt(0)}
-                                </div>
-                              )}
-                            </Link>
-                            <Link
-                              href={`/profile/${request.username}`}
-                              className="font-bold text-white transition-colors hover:text-[#4ee8c2]"
-                            >
-                              {request.displayName}
-                            </Link>
-                          </div>
-                        </td>
-                        <td className="flex justify-end gap-2 p-4">
-                          <button
-                            onClick={() => handleRespond(request.id, true)}
-                            className="flex items-center gap-2 rounded-md bg-[#4ee8c2]/10 px-3 py-1.5 text-sm font-bold text-[#4ee8c2] transition-colors hover:bg-[#4ee8c2]/20"
-                          >
-                            <Check className="h-4 w-4" />
-                            {t("actions.accept")}
-                          </button>
-                          <button
-                            onClick={() => handleRespond(request.id, false)}
-                            className="flex items-center gap-2 rounded-md bg-red-500/10 px-3 py-1.5 text-sm font-bold text-red-400 transition-colors hover:bg-red-500/20"
-                          >
-                            <X className="h-4 w-4" />
-                            {t("actions.decline")}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+function UserName({
+  user,
+}: {
+  user: Pick<FriendData, "username" | "displayName" | "avatarUrl"> | SearchUser;
+}) {
+  return (
+    <span className="min-w-0">
+      <Link
+        href={`/profile/${user.username}`}
+        className="block truncate font-black text-[var(--text)] no-underline"
+      >
+        {user.displayName}
+      </Link>
+      <span className="block truncate text-xs text-[var(--muted-text)]">@{user.username}</span>
+    </span>
+  );
+}
 
-          {activeTab === "sent" && (
-            <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-[#08101F] shadow-lg shadow-blue-500/10">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
-                    <th className="p-4 font-bold text-slate-200">{t("tabs.sent")}</th>
-                    <th className="p-4 text-right font-bold text-slate-200">
-                      {t("table.actions")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sentRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="p-8 text-center text-slate-400">
-                        {t("empty.sent")}
-                      </td>
-                    </tr>
-                  ) : (
-                    sentRequests.map((request) => (
-                      <tr
-                        key={request.id}
-                        className="border-b border-slate-700/50 transition-colors hover:bg-slate-800/20"
-                      >
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <Link href={`/profile/${request.username}`}>
-                              {request.avatarUrl ? (
-                                <img
-                                  src={request.avatarUrl}
-                                  alt={request.displayName}
-                                  className="h-8 w-8 rounded-full object-cover transition-transform hover:scale-105"
-                                />
-                              ) : (
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 font-bold text-white uppercase transition-transform hover:scale-105">
-                                  {request.displayName.charAt(0)}
-                                </div>
-                              )}
-                            </Link>
-                            <Link
-                              href={`/profile/${request.username}`}
-                              className="font-bold text-white transition-colors hover:text-[#4ee8c2]"
-                            >
-                              {request.displayName}
-                            </Link>
-                          </div>
-                        </td>
-                        <td className="flex justify-end p-4">
-                          <button
-                            onClick={() => handleRespond(request.id, false)}
-                            className="flex items-center gap-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-bold text-slate-300 transition-colors hover:bg-slate-700"
-                          >
-                            <X className="h-4 w-4" />
-                            {t("actions.cancelRequest")}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="grid min-h-[360px] place-items-center rounded-md border border-dashed border-[var(--panel-border)] bg-white/[0.035] p-8 text-center">
+      <div>
+        <Users aria-hidden="true" className="mx-auto mb-4 size-10 text-[var(--brass)]" />
+        <p className="m-0 font-serif text-2xl font-bold">{label}</p>
+      </div>
+    </div>
   );
 }

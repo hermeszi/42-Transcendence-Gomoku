@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Inter } from "next/font/google";
+import { Cormorant_Garamond, Manrope } from "next/font/google";
 import { notFound } from "next/navigation";
 
 import "../../node_modules/shadcn/dist/tailwind.css";
@@ -9,14 +9,24 @@ import "../../node_modules/tw-animate-css/dist/tw-animate.css";
 import "../globals.css";
 import type { ReactNode } from "react";
 
-import Footer from "@/components/footer";
-import Navbar from "@/components/nav-bar";
+import AppSidebar from "@/components/app-sidebar";
 import { PresenceProvider } from "@/components/presence-provider";
 import { routing } from "@/i18n/routing";
 import { getCurrentSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const manrope = Manrope({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+const cormorant = Cormorant_Garamond({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["600", "700"],
+});
 
 type RootLayoutProps = {
   children: ReactNode;
@@ -56,15 +66,19 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
   const socketUrl = process.env["SOCKET_PUBLIC_URL"];
 
   return (
-    <html lang={locale} className={cn("font-sans", inter.variable)}>
-      <body className="bg-slate-100 text-slate-900">
+    <html lang={locale} className={cn("dark font-sans", manrope.variable, cormorant.variable)}>
+      <body>
         <NextIntlClientProvider>
           <PresenceProvider currentUsername={username} socketUrl={socketUrl}>
-            <Navbar />
-
-            <main className="pt-16">{children}</main>
-
-            <Footer />
+            <a className="skip-link" href="#app-main">
+              Skip to Content
+            </a>
+            <div className="app-frame">
+              <AppSidebar />
+              <div id="app-main" className="app-content">
+                {children}
+              </div>
+            </div>
           </PresenceProvider>
         </NextIntlClientProvider>
       </body>
