@@ -120,7 +120,7 @@ test("selector and popup surfaces stay opaque and readable", async ({ page }) =>
 test("authenticated redesigned pages render at desktop and mobile widths", async ({
   page,
 }, testInfo) => {
-  const user = await createAndSignInTestUser(page, testInfo);
+  const user = await createAndSignInTestUser(page, testInfo, getStatusOperatorUsername(testInfo));
   const friend = await createAcceptedFriend(user.id, user.token);
 
   try {
@@ -153,6 +153,17 @@ test("authenticated redesigned pages render at desktop and mobile widths", async
     await gotoAppRoute(page, "/messages");
     await expect(page.getByRole("heading", { level: 1, name: "Messages" })).toBeVisible();
     await expectNoDocumentOverflow(page, "/messages");
+
+    await gotoAppRoute(page, "/status");
+    await expect(page.getByRole("heading", { level: 1, name: "System status" })).toBeVisible();
+    await expect(page.getByRole("heading", { exact: true, name: "PostgreSQL" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Realtime Service" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "PostgreSQL artifacts" }),
+    ).toBeVisible();
+    await expectNoDocumentOverflow(page, "/status");
   } finally {
     await cleanupTestUsers([user.username, friend.username]);
   }
@@ -181,17 +192,31 @@ type TestUser = {
   username: string;
 };
 
-async function createAndSignInTestUser(page: Page, testInfo: TestInfo): Promise<TestUser> {
+function getStatusOperatorUsername(testInfo: TestInfo) {
+  const project = testInfo.project.name.replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+  return `e2e_status_operator_${project}`;
+}
+
+async function createAndSignInTestUser(
+  page: Page,
+  testInfo: TestInfo,
+  usernameOverride?: string,
+): Promise<TestUser> {
   const project = testInfo.project.name
     .replace(/[^a-z0-9]/gi, "")
     .toLowerCase()
     .slice(0, 6);
   const token = `${project}${testInfo.workerIndex}${randomUUID().slice(0, 8)}`;
-  const username = `e2e_${token}`;
+  const username = usernameOverride ?? `e2e_${token}`;
   const email = `gomoku.${token}@example.com`;
   const displayName = `E2E Player ${token.slice(-4)}`;
   const userId = createId();
   const hashedPassword = await hashPassword("password123");
+
+  if (usernameOverride) {
+    await cleanupTestUsers([usernameOverride]);
+  }
 
   const dbUser = await prisma.user.create({
     data: {
