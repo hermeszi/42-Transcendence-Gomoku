@@ -1294,4 +1294,9 @@ export const messages = {
       },
     },
   },
+  notFound: {
+    title: "ページが見つかりません",
+    description: "リクエストされたページは見つかりませんでした。",
+    returnHome: "メインページに戻る",
+  },
 };

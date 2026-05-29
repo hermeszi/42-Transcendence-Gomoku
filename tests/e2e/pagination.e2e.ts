@@ -12,7 +12,7 @@ import {
   RuleType,
   Seat,
 } from "../../generated/prisma/enums";
-import { expect, type Page, type TestInfo, test } from "./fixtures";
+import { expect, type Page, type TestInfo, test, visibleLabel } from "./fixtures";
 
 test.setTimeout(90_000);
 
@@ -198,8 +198,8 @@ async function createAndSignInTestUser(page: Page, testInfo: TestInfo): Promise<
 
   try {
     await gotoAppRoute(page, "/login");
-    await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Password").fill("password123");
+    await visibleLabel(page, "Email").fill(email);
+    await visibleLabel(page, "Password").fill("password123");
     await page.getByRole("button", { exact: true, name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/en\/profile$/);
   } catch (error) {

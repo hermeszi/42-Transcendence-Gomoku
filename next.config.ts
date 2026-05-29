@@ -84,6 +84,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   allowedDevOrigins: allowedDevOrigins.length > 0 ? allowedDevOrigins : undefined,
   experimental: {
+    globalNotFound: true,
     instantNavigationDevToolsToggle: true,
   },
   images: {
